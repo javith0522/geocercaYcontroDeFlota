@@ -136,7 +136,7 @@ public class GeocercaService {
         registroStandbyRepository.findByViajeIdAndSitioIdAndCerradoFalse(viaje.getId(), String.valueOf(sitioId))
                 .ifPresent(registo -> {
                     if (sitio != null) {
-                        sta
+
                     }
                 } );
     }

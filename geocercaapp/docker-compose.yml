@@ -1,0 +1,66 @@
+version: "3.9"
+
+services:
+
+  db:
+    image: mysql:8.3
+    container_name: standby-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
+      MYSQL_DATABASE: ${DB_NAME:-standby_db}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_PASSWORD:-root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: standby-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-standby_db}
+      DB_USER: ${DB_USER:-root}
+      DB_PASSWORD: ${DB_PASSWORD:-root}
+
+      # JWT
+      JWT_SECRET: ${JWT_SECRET:-cambia-esta-clave-por-una-de-al-menos-256-bits-en-produccion}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-28800000}
+      JWT_REFRESH_EXPIRATION_MS: ${JWT_REFRESH_EXPIRATION_MS:-604800000}
+
+
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-1.5-flash}
+
+
+      OSRM_URL: ${OSRM_URL:-https://router.project-osrm.org}
+
+
+      JAVA_OPTS: "-XX:MaxRAMPercentage=75"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  mysql_data:
+    driver: local
